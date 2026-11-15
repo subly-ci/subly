@@ -284,7 +284,7 @@ async function payWithWave(event){
  const total=totalCart();
  if(!Number.isSafeInteger(total)||total<=0){alert("Le montant de la commande est invalide.");return;}
  const order={
-  reference:"SUB-"+Date.now().toString().slice(-8),
+  reference:"SUB-"+Date.now().toString()+"-"+Math.random().toString(36).slice(2,7).toUpperCase(),
   customerName:name,customerPhone:phone,customerEmail:email,
   items:cart.map(({service,plan,price,duration,qty})=>({service,plan,price,duration,qty})),
   total,createdAt:new Date().toISOString(),paymentStatus:"Paiement en attente de vérification"
@@ -342,15 +342,23 @@ function sendOrderOnWhatsApp(){
 }
 function restorePendingOrder(){
  try{pendingOrder=JSON.parse(localStorage.getItem("subly_pending_order")||"null");}catch(e){pendingOrder=null;}
+ if(pendingOrder){
+  const createdAt=Date.parse(pendingOrder.createdAt||"");
+  const age=Date.now()-createdAt;
+  // La commande reste visible pendant 10 minutes, même après actualisation.
+  // Au-delà, le prochain chargement repart sur une nouvelle commande.
+  if(!Number.isFinite(createdAt)||age>=10*60*1000||age<0){
+   localStorage.removeItem("subly_pending_order");
+   pendingOrder=null;
+  }
+ }
  if(pendingOrder && pendingOrder.reference && Array.isArray(pendingOrder.items) && pendingOrder.items.length){
   const resume=document.getElementById("resumeOrderButton");
   if(resume)resume.style.display="block";
-  const formButton=document.getElementById("waveButton");
-  if(formButton)formButton.style.display="none";
   const note=document.getElementById("orderReadyNote");
   if(note)note.style.display="block";
   const next=document.getElementById("whatsappNext");
-  if(next){next.style.display="block";}
+  if(next)next.style.display="block";
   const wave=document.getElementById("waveLink");
   if(wave && Number(pendingOrder.total)>0)wave.href=buildWaveUrl(pendingOrder.total);
   const send=document.getElementById("whatsappButton");
